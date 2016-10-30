@@ -9,7 +9,8 @@ tags:
 - R 
 - Neo4j 
 categories:
-- Graphs
+- Pokemon
+- rstats
 ---
 
 ```{r setup, include=FALSE}
