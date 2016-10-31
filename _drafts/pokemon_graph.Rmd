@@ -10,27 +10,29 @@ tags:
 - Neo4j 
 categories:
 - Pokemon
-- rstats
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## GitHub Documents
+## What happens when you combine Pokemon with Neo4j?
 
-This is an R Markdown format used for publishing markdown documents to GitHub. When you click the **Knit** button all R code chunks are run and a markdown file (.md) suitable for publishing to GitHub is generated.
+I'm a huge Pokemon fan. So, when I found about [this awesome post](http://jkunst.com/r/pokemon-visualize-em-all/) from *Joshua Kunst*, I just couldn't wait to throw all that data into Neo4j.
 
-## Including Code
+It also happens to be a great way to learn how to build a graph database from scratch. The objective of this exercise is to build a graph database where the nodes are the pokemon and the types, and the relationships are the effectiveness between the pokemon based only on their types.
 
-You can include R code in the document as follows:
 
-```{r, eval=FALSE}
-library(RNeo4j)
+## Getting the data
+
+First of all, be sure to check Joshua's post to learn how to import all that pokemon data. We will asume that the data is in a data frame called *df*.
+
+Then, we need to get the relationships between types. The easiest thing for acomplishing that is to scrape the table from [pokemondb.net](http://pokemondb.net/type).
+
+```{r, message=FALSE, results='asis'}
+
 library(rvest)
-library(visNetwork)
-
-source("jbkunst_pokemon.R")
+library(methods)
 
 link <- "http://pokemondb.net/type"
 
@@ -41,6 +43,8 @@ types <- link_html %>%
   .[[1]] %>%
   html_table()
 
+#Give format
+
 names(types)[1] <- "Type"
 types$Type <- tolower(types$Type)
 names(types)[2:ncol(types)] <- types$Type
@@ -48,7 +52,12 @@ types[is.na(types)] <- 1
 types[types == ""] <- 1
 types[types == "½"] <- 0.5
 
+knitr::kable(types, format = "html")
 
+```
+
+
+```{r, eval=FALSE, echo = FALSE}
 
 df %>% select(id, type =  type_1) -> t1
 df %>% select(id, type =  type_2) -> t2
@@ -122,11 +131,9 @@ commit(t)
 
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
 
-```{r pressure, echo=FALSE, eval=F}
+```{r, echo=FALSE, eval=FALSE}
 
 final_query <- "
 match (n:Pokemon)-[t:TYPE]->(l:Type)-[e:EFECTIVENESS]->(s:Type)<-[j:TYPE]-(z:Pokemon) 
@@ -156,4 +163,3 @@ edges <- poke_sp_eft %>%
 visNetwork(nodes, edges, width = "100%")
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
