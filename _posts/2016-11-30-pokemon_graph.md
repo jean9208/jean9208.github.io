@@ -2,7 +2,7 @@
 layout: post
 title: "Building a pokemon graph database"
 output: github_document
-date: "31 octubre, 2016"
+date: "30 noviembre, 2016"
 image: '/assets/img/'
 description: 'Building a pokemon graph with R and Neo4j'
 tags:
@@ -14,7 +14,7 @@ categories:
 
 
 
-## What happens when you combine Pokemon with Neo4?
+## What happens when you combine Pokemon with Neo4j?
 
 I'm a huge Pokemon fan. So, when I found about [this awesome post](http://jkunst.com/r/pokemon-visualize-em-all/) from *Joshua Kunst*, I just couldn't wait to throw all that data into Neo4j.
 
@@ -29,8 +29,10 @@ Then, we need to get the relationships between types. The easiest thing for acom
 
 
 ```r
+library(RNeo4j)
 library(rvest)
 library(methods)
+library(dplyr)
 
 link <- "http://pokemondb.net/type"
 
@@ -459,10 +461,151 @@ knitr::kable(types, format = "html")
 </tbody>
 </table>
 
+Then we need to separate the types of the pokemon.
+
+
+```r
+df %>% select(id, type =  type_1) -> t1
+df %>% select(id, type =  type_2) -> t2
+
+rbind(t1,t2) -> tf
+
+poke_df <- df %>% select(-type_1, -type_2) %>% 
+  left_join(tf, by = "id") %>% 
+  filter(!is.na(type))
+```
+We are ready to import to Neo4j, so we need to set the connection.
 
 
 
 
+Then, we create the pokenodes and the type nodes. We set a relationship for the typing.
 
+
+
+```r
+#Connect to Graph
+
+
+graph = startGraph(url = url,
+                   username = username,
+                   password = password)
+
+#Constraints
+
+addConstraint(graph, "Pokemon", "id")
+addConstraint(graph, "Type", "type")
+
+
+#Create nodes and relationships within the same function
+
+pokenodes <- function(x) {
+  pokemon <- getOrCreateNode(graph, "Pokemon", id = x["id"], name = x["pokemon"],
+                             height = x["height"], weight = x["weight"],
+                             attack = x["attack"], defense = x["defense"],
+                             hp = x["hp"], special_attack = x["special_attack"],
+                             special_defense = x["special_defense"], speed = x["speed"],
+                             url_image = x["url_image"], url_icon = x["url_icon"])
+  
+  type <- getOrCreateNode(graph, "Type", type = x["type"])
+  
+  createRel(pokemon,"TYPE",type)
+}
+
+#Apply to every row
+
+apply(poke_df[1:nrow(poke_df),],1,pokenodes)
+```
+
+We define the desired relationship (effectiveness) using the scraped table
+
+
+
+```r
+types <- types %>% gather(Type)
+
+names(types)[2] <- "Type_Rel"
+
+effectiveness <- types %>% filter(value != 1)
+```
+
+And we are ready to upload the effectiveness, this time using a transaction. Thanks to Nicloe White for this [useful post](https://nicolewhite.github.io/2014/09/30/upload-last-fm-rneo4j-transaction.html)
+
+
+```r
+#Query for creating relationships for the pokenodes
+
+query = "
+MERGE (n:Type {type:{type_1}})
+MERGE (m:Type {type:{type_2}})
+CREATE (n)-[r:EFECTIVENESS]->(m)
+SET r.value = {value}
+"
+
+#Transactiopn endpoint
+t = newTransaction(graph)
+
+for (i in 1:nrow(effectiveness)) {
+  type_1 = effectiveness[i, ]$Type
+  type_2 = effectiveness[i, ]$Type_Rel
+  value = effectiveness[i, ]$value
+  
+  appendCypher(t, 
+               query, 
+               type_1 = type_1, 
+               type_2 = type_2, 
+               value  = value)
+}
+
+commit(t)
+```
+
+It's time to query our database!!! Let's check all the pokemon that Salamence is double effective:
+
+
+
+
+```r
+library(visNetwork)
+
+#Query to check for effectiveness for Salamence
+final_query <- "
+match (n:Pokemon)-[t:TYPE]->(l:Type)-[e:EFECTIVENESS]->(s:Type)<-[j:TYPE]-(z:Pokemon) 
+where n.name = 'salamence' 
+return n.name as poke1, e.value as value, z.name as poke2, n.url_icon as icon1,
+z.url_icon as icon2, n.url_image as image1, z.url_image as image2"
+
+#Execute the query
+poke_cypher = cypher(graph, final_query)
+
+#Get data for VisNetwork
+poke_cypher <- poke_cypher %>%
+  mutate(value = as.numeric(value)) %>%
+  group_by(poke1, poke2, image1, image2, icon1, icon2) %>%
+  summarise(value = prod(value)) %>%
+  ungroup()
+
+#Filter by double effective
+poke_sp_eft <- poke_cypher %>%
+  filter(value == 2)
+
+#More data for VisNetwork
+poke <- unique(c(poke_sp_eft$poke1, poke_sp_eft$poke2))
+img  <- unique(c(poke_sp_eft$icon1, poke_sp_eft$icon2))
+
+nodes <- data.frame(id = poke, label = poke, image = img, shape = "image")
+
+edges <- poke_sp_eft %>%
+  select(from = poke1, to = poke2)
+
+#The VISUALIZATION
+visNetwork(nodes, edges, width = "100%")
+```
+
+![plot of chunk unnamed-chunk-8](figure/unnamed-chunk-8-1.png)
+
+And that's how you do it! With the RNeo4j it's so easy to set a graph. Maybe in the future it could be expanded in a recommender system or something like that.
+
+Check out a [shiny app](https://jean-arreola.shinyapps.io/Pokemon_Effectiveness/) for the pokemon database! 
 
 
