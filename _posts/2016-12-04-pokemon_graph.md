@@ -3,8 +3,8 @@ layout: post
 title: "Building a pokemon graph database"
 output: github_document
 
-date: "01 diciembre, 2016"
-image: '/assets/img/'
+date: "04 diciembre, 2016"
+image: '/assets/img/posts/'
 description: 'Building a pokemon graph with R and Neo4j'
 tags:
 - R 
@@ -15,7 +15,7 @@ categories:
 
 
 
-## What happens when you combine Pokemon with Neo4j0.5
+## What happens when you combine Pokemon with Neo4j?
 
 I'm a huge Pokemon fan. So, when I found about [this awesome post](http://jkunst.com/r/pokemon-visualize-em-all/) from *Joshua Kunst*, I just couldn't wait to throw all that data into Neo4j.
 
@@ -603,7 +603,7 @@ edges <- poke_sp_eft %>%
 visNetwork(nodes, edges, width = "100%")
 ```
 
-![plot of chunk unnamed-chunk-8]({{ site.url }}/images/pokemon_graphunnamed-chunk-8-1.png)
+![plot of chunk unnamed-chunk-8]({{ site.url }}/assets/img/posts/unnamed-chunk-8-1.png)
 
 And that's how you do it! With the RNeo4j it's so easy to set a graph. Maybe in the future it could be expanded in a recommender system or something like that.
 

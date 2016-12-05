@@ -4,7 +4,7 @@ title: "Building a pokemon graph database"
 output: github_document
 
 date: "`r format(Sys.time(), '%d %B, %Y')`"
-image: '/assets/img/'
+image: '/assets/img/posts/'
 description: 'Building a pokemon graph with R and Neo4j'
 tags:
 - R 
@@ -15,7 +15,7 @@ categories:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_chunk$set(fig.path='{{ site.url }}/images/pokemon_graph')
+knitr::opts_chunk$set(fig.path='img/pokegraph')
 ```
 
 ## What happens when you combine Pokemon with Neo4j?
