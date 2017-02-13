@@ -1,0 +1,29 @@
+---
+layout: post
+title: "R-Bloggers"
+output: github_document
+
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+image: '/assets/img/posts/'
+description: 'I was finnaly accepted on R-Bloggers!'
+tags:
+- News 
+categories:
+- News
+comments: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.path='img/pokegraph')
+```
+
+## What is R-Bloggers?
+
+R-Bloggers is a blog aggregator of content about R. You can find tons of cool stuff, like statistics, web scraping, finance, plots, etc.
+
+Finally this blog was accepted into R-Bloggers! I encourage you to follow R-Bloggers. It is updated everyday and all the post are interesting.
+
+You can enter R-Bloggers [following this link](https://www.r-bloggers.com/).
+
+Also be sure to check this [job-board](www.r-users.com) for R-users.
