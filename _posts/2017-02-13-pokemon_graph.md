@@ -4,7 +4,6 @@ title: "Building a pokemon graph database"
 output: github_document
 
 date: "13 febrero, 2017"
-image: '/assets/img/posts/'
 description: 'Building a pokemon graph with R and Neo4j'
 tags:
 - R 
