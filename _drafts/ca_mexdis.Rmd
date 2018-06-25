@@ -1,0 +1,209 @@
+---
+layout: post
+title: "Correspondence Analysis of Mexican Discourses"
+output: html_document
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+image: '/assets/img/posts/'
+description: 'Analyzing discourses from mexican politicians'
+tags:
+- R 
+- Highcharts
+- Politics
+categories:
+- Algorithms
+comments: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tm)
+library(highcharter)
+library(purrr)
+```
+
+## Correspondence Analysis
+
+Correspondence analysis is a multivariate statistical technique that summarizes a set of categorical data in a two dimensional form. It's like the equivalent of Principal Component Analysis but for categorical data. 
+
+Correspondence analysis is usually applied to contigency tables. In this post, we will apply it to a frequency matrix (term document matrix from bag of words representation).
+
+The analysis can be done by row or by column. Below is an implementation of correspondence analysis, where row and column analysis are done at the same time. 
+
+```{r ca}
+correspondence <- function(ct, ind){
+  
+  #Parameters
+  #ct : contingency table (or frequency table)
+  #ind: which eigenvectors (first eigenvector is ommited)
+  
+  n <- sum(ct)
+  rows <- nrow(ct)
+  cols <- ncol(ct)
+  
+  #Correspondence Matrix
+  F_fisher<-(ct)/n
+  
+  #Relative frequencies
+  rtot<-(apply(ct,1,sum))/n
+  ctot<-apply(ct,2,sum)/n
+  Dr<-diag(rtot)
+  Dc<-diag(ctot)
+  
+  
+  Z<-(sqrt(solve(Dr)))%*%F_fisher%*%(sqrt(solve(Dc)))
+  
+  #Eigenvalues and eigenvector are obtained with SVD
+  dvalsing<-svd(Z)
+  
+  #Two dimensional representation
+  #Row analysis
+  Cr<-(sqrt(solve(Dr)))%*%Z%*%dvalsing$v[,ind]
+  #Column analysis
+  Cc<-(sqrt(solve(Dc)))%*%t(Z)%*%dvalsing$u[,ind]
+  
+  return(list("Cr" = Cr, "Cc" = Cc))
+}
+```
+
+## Mexican discourses
+
+In this post we will analize the discourses of mexican politicians, in particular, candidates for Mexico presidency. We have 11 discourses in total:
+
+- Roberto Madrazo Pintado (PRI 2006)
+- Andres Manuel Lopez Obrador (PRD 2006) (PRD 2012) (MORENA 2018)
+- Enrique Peña Nieto (PRI 2012 before and after being elected)
+- Josefina Vazquez Mota (PAN 2012)
+- Felipe Calderon (PAN 2006)
+- Ricardo Anaya Cortes (PAN 2018)
+- Jose Antonio Meade Kuribreña (PRI 2018)
+- Margarita Ester Zavala Gomez del Campo (Independiente 2018)
+
+Our objective is to find patterns in the two dimensional of the discourses, that reflect information of the actual Mexico context regarding politics.
+
+```{r discourses, echo=FALSE}
+freqterms <- function(rut.data,n){
+  corp <- Corpus(DirSource(rut.data,recursive=TRUE),
+                 readerControl=list(language="es"))
+  
+  corpNames <- names(corp)
+  corp <- tm_map(corp,removeNumbers)
+  corp <- tm_map(corp,content_transformer(tolower))
+  corp <- tm_map(corp,stripWhitespace)
+  corp <- tm_map(corp,removePunctuation)
+  corp <- tm_map(corp,removeWords,stopwords("spanish"))
+  corp <- tm_map(corp,stemDocument, language = "spanish")
+  corp <- tm_map(corp,removeWords,stopwords("spanish"))
+  #Se removieron mas palabras
+  corp <- tm_map(corp,removeWords, words = c("que","los"))
+  # obtiene matriz de terminos
+  tdm <- TermDocumentMatrix(corp,control=list(minDocFreq=100))
+  ## remuevo terminos poco repetidos (95% sparsity)
+  tdm <- removeSparseTerms(tdm, 0.95)
+  ## frecuencia de terminos
+  term.freq <- rowSums(as.matrix(tdm))
+  sort.freq <- sort.int(term.freq,decreasing=TRUE,index.return=TRUE)
+  ## los n mas frecuentes
+  nterms.corp <- names(sort.freq$x[1:n])
+  return(list(nterms=nterms.corp,tdm=tdm,ndocs=length(corp), names = as.character(corpNames)))
+}
+
+#Matriz de frecuencias de los terminos por documento
+count.terms <- function(tdms,terms){
+  freq.table <- NULL
+  for(i in 1:length(terms)){
+    aa <- tm_term_score(tdms,terms[i])
+    freq.table <- cbind(freq.table,aa)
+  }
+  colnames(freq.table) <- terms
+  return(freq.table)
+}
+
+# Cargar discursos
+
+ruta <- "C:\\Users\\Jean\\Documents\\Maestria_Computo_Estadistico\\Estadistica Multivariada\\Proyecto_Jean\\Discursos\\"
+ruta2 <- "https://github.com/jean9208/jean9208.github.io/blob/master/assets/img/posts/Candidates/"
+labels <- c("2006_cam_madrazo.jpg", "2006_cam_obrador.jpg", "2012_inicio_nieto.jpg",
+                "2012_inicio_obrador.jpg", "2012_inicio_vazquezmota.jpg",
+                "2012_presidente_calderon.jpg", "2012_presidente_nieto.jpg",
+                "2018_inicio_anaya.jpg", "2018_inicio_meade.jpg", "2018_inicio_obrador.jpg",
+                "2018_inicio_zavala.jpg")
+plabs <- paste0(ruta2, labels)
+
+# 500 álabras mas frecuentes
+n <- 500
+corp <- freqterms(ruta,n)
+counts <- count.terms(corp$tdm, corp$nterms)
+rownames(counts) <- dir(ruta)
+
+
+#Analisis de correspondencia
+anpol <- correspondence(counts,  c(2,3))
+anByCol <- as.data.frame(anpol$Cc)   #por fila
+anByRow <- as.data.frame(anpol$Cr)    # por columna
+colnames(anByRow) <- c("x","y")
+colnames(anByCol) <- c("x", "y")
+
+#Lo necesario para el grafico
+anByCol$word <- colnames(counts)
+anByRow$Cicon <- plabs
+anByRow$marker <- map(anByRow$Cicon, function(x) list(symbol = paste0('url(',x,')'),
+                                                      height = 50,
+                                                      width = 50))
+what <- rownames(counts)
+what <- gsub(".dat", "", what)
+what <- strsplit(what, "_")
+what <- do.call(rbind, what)
+colnames(what) <- c("year", "context", "name")
+anByRow <- cbind(anByRow, what)
+anByRow$word <- labels
+datos <- list_parse(anByRow)
+palabras <- list_parse(anByCol)
+
+```
+
+## Putting it all together
+
+We will use the bag of words representation for the discourses. The most frequent 500 words will be chosen for the analysis, and our final term document matrix will be a 11 x 500 matrix.
+
+Next, we see the results of the correspondence analysis appplied to our term document matrix:
+
+```{r plot, echo=FALSE}
+highchart() %>%
+  hc_chart(zoomType = "xy") %>%
+  hc_title(text = "Candidates and most used words") %>%
+  hc_add_series(data = datos,
+                type = "scatter",
+                name = "Candidates") %>%
+  hc_add_series(data = palabras,
+                type = "scatter",
+                name = "Words",
+                color = "#0080FF") %>%
+  hc_tooltip(
+    useHTML = TRUE,
+    borderRadius = 0,
+    borderWidth = 5,
+    headerFormat = "<table>",
+    pointFormat =  "<b>{point.word}</b>",
+    footerFormat = "</table>"
+  ) %>% saveWidget("anCorr.html")
+
+#bla <- readJPEG(paste0(ruta2, "2018_inicio_zavala.jpg"))
+```
+
+## Insights
+
+We can see that Ricardo Anaya and Roberto Madrazo are the furthest. That means in this context that they use words in their discourses that the other candidates don't use frequently.
+
+The three discourses from Andres Manuel are near from each other, and that was expected. And Margarita Zavala is close to Josefina Vazquez Mota. That makes sense, as their campaings are based on the idea of a woman in the presidency, so it's logical that they use similar words in their discourses.
+
+Another interesting insight is the closeness between Felipe Calderon and Margarita Zavala. It turns out that the team that helped Zavala in her campaign were former collaborators of Felipe Calderon, so maybe she was advised in the same way that Calderon. [Check this new here.](https://www.animalpolitico.com/2018/04/excolaboradores-de-felipe-calderon-la-base-del-equipo-de-campana-de-margarita-zavala/)
+
+The final insight was the closeness between Margarita Zavala and Jose Antonio Meade. Recently, Zavala has resigned from her candidacy,  and, surprisingly, Jorge Camacho (former campaign chief from Zavala campaign) has anounced that he intends to vote for Meade. Perhaps he intends to vote for the candidate with the most similar ideas, and that would explain the closeness in our analysis. [Check this new here.](https://www.elmanana.com/ex-jefe-campana-zavala-votara-meade-jose-antonio-meade-margarita-zavala-pri-twitter/4426818)
+
+## Final thoughts
+
+Correspondence analysis has proven to be useful in finding patterns on frequencey matrices. We saw how some of the political news can be reflected in a discourse analysis. For future work, we can use MDS in the term frequency matrix to obtain "data points" and train a classificator! But correspondence analysis is good for a initial representation.
+
+## Discourses
+
+Discourses obtained from [animalpolitico.com](https://www.animalpolitico.com/2018/03/discursos-candidatos-presidenciales/)
