@@ -121,7 +121,7 @@ count.terms <- function(tdms,terms){
 # Cargar discursos
 
 ruta <- "C:\\Users\\Jean\\Documents\\Maestria_Computo_Estadistico\\Estadistica Multivariada\\Proyecto_Jean\\Discursos\\"
-ruta2 <- "https://github.com/jean9208/jean9208.github.io/blob/master/assets/img/posts/Candidates/"
+ruta2 <- "https://github.com/jean9208/jean9208.github.io/raw/master/assets/img/posts/Candidates/"
 labels <- c("2006_cam_madrazo.jpg", "2006_cam_obrador.jpg", "2012_inicio_nieto.jpg",
                 "2012_inicio_obrador.jpg", "2012_inicio_vazquezmota.jpg",
                 "2012_presidente_calderon.jpg", "2012_presidente_nieto.jpg",
